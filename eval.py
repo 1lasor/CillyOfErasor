@@ -1,5 +1,6 @@
-from lexical_analyzer import cilly_lexer,error
+from lexical_analyzer import cilly_lexer, error
 from syntactic_analyzer import cilly_parser
+
 
 def mk_num(i):
     return ['num', i]
@@ -136,7 +137,7 @@ def cilly_eval(ast):
 
         if op == '/':
             return mk_num(v1 / v2)
-            
+
         if op == '^':
             return mk_num(v1 ** v2)
 
@@ -154,10 +155,10 @@ def cilly_eval(ast):
             return mk_bool(v1 != v2)
 
         err(f'非法二元运算符{op}')
-        
+
     def ev_ternary(node):
         _, cond, true_expr, false_expr = node
-        
+
         if visit(cond) == TRUE:
             return visit(true_expr)
         else:
@@ -190,35 +191,35 @@ def cilly_eval(ast):
             prev_r = r
 
         return r
-        
+
     def ev_for(node):
         _, init, cond, incr, body = node
-        
+
         r = NULL
         prev_r = NULL
-        
+
         visit(init)  # 执行初始化语句
-        
+
         while True:
             cond_val = visit(cond)
             if cond_val[0] == 'expr_stat':
                 cond_val = cond_val[1]
-                
+
             if cond_val != TRUE:
                 break
-                
+
             r = visit(body)
             if r[0] == 'break':
                 r = prev_r
                 break
-                
+
             if r[0] == 'continue':
                 visit(incr)
                 continue
-                
+
             prev_r = r
             visit(incr)  # 执行增量语句
-            
+
         return r
 
     def ev_break(node):
@@ -353,27 +354,27 @@ if __name__ == "__main__":
         
         print("1+2+...100=",sum);
         ''',
-        
+
         # 测试幂运算
         '''
         var x = 2 ^ 3 ^ 2;
         print("2^3^2=", x);
         ''',
-        
+
         # 测试三元表达式
         '''
         var x = -5;
         var y = x > 0 ? x : -x;
         print("绝对值:", y);
         ''',
-        
+
         # 测试for循环
         '''
         for (var i = 0; i < 10; i = i + 1;) {
             print("循环计数:", i);
         }
         ''',
-        
+
         # 测试函数
         '''
         var add = fun(a,b){
@@ -383,15 +384,15 @@ if __name__ == "__main__":
         print("函数测试:", add(1,2), add(3*4, 6));
         '''
     ]
-    
+
     for i, test in enumerate(test_cases):
-        print(f"\n测试 {i+1}:")
+        print(f"\n测试 {i + 1}:")
         tokens = cilly_lexer(test)
         print("tokens:", tokens)
-        
+
         ast = cilly_parser(tokens)
         print("ast:", ast)
-        
+
         print("执行结果:")
         env = {}  # 重置环境
         v = cilly_eval(ast)
