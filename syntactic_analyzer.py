@@ -460,7 +460,7 @@ if __name__ == "__main__":
         }
         """,
         "#下面为报错时行列号提示：",
-        "2 ^ 3 ^ 2;幂表达式"
+        "2 ^ 3 ^ 2;#幂表达式"
     ]
 
     for i, test in enumerate(test_cases):
