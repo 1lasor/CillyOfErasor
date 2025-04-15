@@ -248,7 +248,10 @@ def evaluate_node(node, env):
 
         for s in statements:
             r = visit(s, env)
-            if r[0] in ['break', 'continue']:
+            # 检查 r 是否为 None
+            if r is None:
+                continue
+            if r[0] in ['break', 'continue', 'return']:
                 return r
 
         return r
@@ -409,7 +412,15 @@ class Environment:
 
     def import_external_functions(self):
         # 引入外部函数
+        from turtle import forward,right,pencolor,left,penup,backward,pendown
         self.define_var('greet', self.mk_primitive_proc(greet))
+        self.define_var('forward', self.mk_primitive_proc(forward))
+        self.define_var('right', self.mk_primitive_proc(right))
+        self.define_var('pencolor', self.mk_primitive_proc(pencolor))
+        self.define_var('penup', self.mk_primitive_proc(penup))
+        self.define_var('backward', self.mk_primitive_proc(backward))
+        self.define_var('pendown', self.mk_primitive_proc(pendown))
+        self.define_var('left', self.mk_primitive_proc(left))
         # 可以在这里添加更多的外部函数
 
 
@@ -459,6 +470,27 @@ if __name__ == "__main__":
         #测试外部函数
         '''
         greet("me");
+        '''
+        #测试作业代码
+        '''
+        fun fern(len) {
+            if(len > 5){
+                forward(len);
+                right(10);
+                fern( len - 10);
+                left( 40);
+                fern( len - 10);
+                right(30);
+                backward(len);
+            }
+        }
+        
+        pencolor("green");
+        left(90);
+        penup();
+        backward(200);
+        pendown();
+        fern(100);
         '''
     ]
 

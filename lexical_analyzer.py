@@ -247,28 +247,47 @@ if __name__ == "__main__":
     from syntactic_analyzer import cilly_parser
 
     p1 = '''
-    true;
-    
-    # 这是一个测试程序
-    1 + 2 ^ 3; # 计算1+2^3
-    
-    # 三元表达式测试
-    x > 0 ? x : -x;
-    
-    # for循环测试
-    for (var i = 0; i < 10; i = i + 1;) { 
-        print(i); # 打印i的值
+    # true;
+    #     # 
+    #     # # 这是一个测试程序
+    #     # 1 + 2 ^ 3; # 计算1+2^3
+    #     # 
+    #     # # 三元表达式测试
+    #     # x > 0 ? x : -x;
+    #     # 
+    #     # # for循环测试
+    #     # for (var i = 0; i < 10; i = i + 1;) { 
+    #     #     print(i); # 打印i的值
+    #     # }
+    #     # # 
+    #     # # # while循环测试
+    #     # # while (i < 10;) { 
+    #     # #     i = i + 1; # 增加i的值
+    #     # # }
+    #     # 
+    #     # # 函数定义测试
+    #     # fun test(a, b) { 
+    #     #     return a + b; # 返回a+b
+    #     # }
+    #     # #
+    fun fern(len) {
+        if(len > 5){
+            forward(len);
+            right(10);
+            fern( len - 10);
+            left( 40);
+            fern( len - 10);
+            right(30);
+            backward(len);
+        }
     }
-    # 
-    # # while循环测试
-    # while (i < 10;) { 
-    #     i = i + 1; # 增加i的值
-    # }
     
-    # 函数定义测试
-    fun test(a, b) { 
-        return a + b; # 返回a+b
-    }
+    pencolor("green");
+    left(90);
+    penup();
+    backward(200);
+    pendown();
+    fern(100);
     '''
 
     tokens = cilly_lexer(p1)

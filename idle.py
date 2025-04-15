@@ -113,6 +113,9 @@ var add = fun(a, b){
     return a + b;
 };
 print("函数调用:", add(5, 7));
+
+# 外部函数引用
+greet("me");
 '''
 
     def open_interactive(self):
