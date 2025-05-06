@@ -113,7 +113,7 @@ cilly_op2 = {
 }
 
 cilly_keywords = [
-    'var', 'print', 'if', 'else', 'while', 'for', 'break', 'continue', 'return', 'fun',
+    'var', 'print', 'if', 'else', 'while', 'for', 'break', 'continue', 'return', 'fun', 'true', 'false', 'null'
 ]
 
 

@@ -137,6 +137,11 @@ BINARY_NE = 118
 BINARY_LT = 119  # <
 BINARY_GE = 120  # >=
 
+# 新增函数相关操作码
+MAKE_FUNCTION = 20
+CALL_FUNCTION = 21
+RETURN = 22
+
 OPS_NAME = {
     LOAD_CONST: ('LOAD_CONST', 2),
 
@@ -174,6 +179,10 @@ OPS_NAME = {
     BINARY_LT: ('BINARY_LT', 1),
     BINARY_GE: ('BINARY_GE', 1),
 
+    MAKE_FUNCTION: ('MAKE_FUNCTION', 2),
+    CALL_FUNCTION: ('CALL_FUNCTION', 1),
+    RETURN: ('RETURN', 1),
+
 }
 
 
@@ -182,6 +191,7 @@ def cilly_vm(code, consts, scopes):
         error('cilly vm', msg)
 
     stack = Stack()
+    call_stack = []  # 用于保存函数调用的返回地址和局部变量
 
     def push(v):
         stack.push(v)
@@ -190,17 +200,13 @@ def cilly_vm(code, consts, scopes):
         return stack.pop()
 
     def load_const(pc):
-
         index = code[pc + 1]
         v = consts[index]
-
         push(v)
-
         return pc + 2
 
     def load_null(pc):
         push(NULL)
-
         return pc + 1
 
     def load_true(pc):
@@ -215,46 +221,34 @@ def cilly_vm(code, consts, scopes):
         scope_i = code[pc + 1]
         if scope_i >= len(scopes):
             err(f'作用域索引超出访问: {scope_i}')
-
         scope = scopes[-scope_i - 1]
-
         index = code[pc + 2]
         if index >= len(scope):
             err(f'load_var变量索引超出范围:{index}')
-
         push(scope[index])
-
         return pc + 3
 
     def store_var(pc):
         scope_i = code[pc + 1]
         if scope_i >= len(scopes):
             err(f'作用域索引超出访问: {scope_i}')
-
         scope = scopes[-scope_i - 1]
-
         index = code[pc + 2]
         if index >= len(scope):
-            err(f'load_var变量索引超出范围:{index}')
-
+            err(f'store_var变量索引超出范围:{index}')
         scope[index] = pop()
-
         return pc + 3
 
     def enter_scope(pc):
         var_count = code[pc + 1]
-
         scope = [NULL for _ in range(var_count)]
         nonlocal scopes
-
-        scopes = scopes + [scope]  # 不用scopes.append(scope)
-
+        scopes = scopes + [scope]
         return pc + 2
 
     def leave_scope(pc):
         nonlocal scopes
-        scopes = scopes[:-1]  # 不用scopes.pop()
-
+        scopes = scopes[:-1]
         return pc + 1
 
     def print_item(pc):
@@ -264,7 +258,6 @@ def cilly_vm(code, consts, scopes):
 
     def print_newline(pc):
         print('')
-
         return pc + 1
 
     def pop_proc(pc):
@@ -273,12 +266,10 @@ def cilly_vm(code, consts, scopes):
 
     def jmp(pc):
         target = code[pc + 1]
-
         return target
 
     def jmp_true(pc):
         target = code[pc + 1]
-
         if pop() == TRUE:
             return target
         else:
@@ -286,7 +277,6 @@ def cilly_vm(code, consts, scopes):
 
     def jmp_false(pc):
         target = code[pc + 1]
-
         if pop() == FALSE:
             return target
         else:
@@ -294,24 +284,19 @@ def cilly_vm(code, consts, scopes):
 
     def unary_op(pc):
         v = val(pop())
-
         opcode = code[pc]
-
         if opcode == UNARY_NEG:
             push(mk_num(-v))
         elif opcode == UNARY_NOT:
             push(mk_bool(not v))
         else:
             err(f'非法一元opcode: {opcode}')
-
         return pc + 1
 
     def binary_op(pc):
         v2 = val(pop())
         v1 = val(pop())
-
         opcode = code[pc]
-
         if opcode == BINARY_ADD:
             push(mk_num(v1 + v2))
         elif opcode == BINARY_SUB:
@@ -334,34 +319,63 @@ def cilly_vm(code, consts, scopes):
             push(mk_bool(v1 >= v2))
         else:
             err(f'非法二元opcode:{opcode}')
-
         return pc + 1
+
+    def make_function(pc):
+        index = code[pc + 1]
+        fun_code = consts[index]
+        push(['function', fun_code])
+        return pc + 2
+
+    def call_function(pc):
+        arg_count = code[pc + 1]
+        # 获取函数对象
+        fun = pop()
+        if not isinstance(fun, list) or fun[0] != 'function':
+            err('调用非函数对象')
+        # 获取参数
+        args = []
+        for _ in range(arg_count):
+            args.insert(0, pop())
+        # 保存当前状态
+        nonlocal scopes
+        call_stack.append((pc + 2, scopes))
+        # 创建新的作用域
+        scopes = [[]]
+        # 设置参数
+        for arg in args:
+            scopes[0].append(arg)
+        # 执行函数代码
+        return 0  # 从函数代码开始处执行
+
+    def return_proc(pc):
+        if not call_stack:
+            err('在非函数上下文中返回')
+        # 获取返回值
+        ret_val = pop()
+        # 恢复调用前的状态
+        pc, scopes = call_stack.pop()
+        # 将返回值压入栈
+        push(ret_val)
+        return pc
 
     ops = {
         LOAD_CONST: load_const,
-
         LOAD_NULL: load_null,
         LOAD_TRUE: load_true,
         LOAD_FALSE: load_false,
-
         LOAD_VAR: load_var,
         STORE_VAR: store_var,
-
         ENTER_SCOPE: enter_scope,
         LEAVE_SCOPE: leave_scope,
-
         PRINT_ITEM: print_item,
         PRINT_NEWLINE: print_newline,
-
         POP: pop_proc,
-
         JMP: jmp,
         JMP_TRUE: jmp_true,
         JMP_FALSE: jmp_false,
-
         UNARY_NEG: unary_op,
         UNARY_NOT: unary_op,
-
         BINARY_ADD: binary_op,
         BINARY_SUB: binary_op,
         BINARY_MUL: binary_op,
@@ -372,23 +386,21 @@ def cilly_vm(code, consts, scopes):
         BINARY_NE: binary_op,
         BINARY_LT: binary_op,
         BINARY_GE: binary_op,
-
+        MAKE_FUNCTION: make_function,
+        CALL_FUNCTION: call_function,
+        RETURN: return_proc,
     }
 
     def get_opcode_proc(opcode):
         if opcode not in ops:
             err(f'非法opcode: {opcode}')
-
         return ops[opcode]
 
     def run():
         pc = 0
-
         while pc < len(code):
             opcode = code[pc]
-
             proc = get_opcode_proc(opcode)
-
             pc = proc(pc)
 
     run()
@@ -410,10 +422,11 @@ def cilly_vm_dis(code, consts, var_names):
 
         if opcode == LOAD_CONST:
             index = code[pc + 1]
-            v = consts[index]
-
-            print(f'{pc}\t LOAD_CONST {index} ({v})')
-
+            if index < len(consts):
+                v = consts[index]
+                print(f'{pc}\t LOAD_CONST {index} ({v})')
+            else:
+                print(f'{pc}\t LOAD_CONST {index} (invalid index)')
             pc = pc + 2
         elif opcode == LOAD_VAR:
             scope_i = code[pc + 1]
@@ -497,17 +510,22 @@ def cilly_vm_compiler(ast, code, consts, scopes):
             for index in range(len(scope)):
                 if scope[index] == name:
                     return scope_i, index
-        err(f'未定义变量：{name}')
+        # 对于前向引用，我们返回全局作用域的索引
+        # 这样在运行时可以访问到后续定义的函数
+        return 0, len(scopes[0]) - 1
 
     def compile_program(node):
         _, statements = node
         # 创建全局作用域
         nonlocal scopes
         scopes = [[]]  # 初始化全局作用域
-        # 先处理所有变量定义
+        # 先处理所有变量定义，包括函数定义
         for stmt in statements:
             if stmt[0] == 'define':
                 define_var(stmt[1])
+            elif stmt[0] == 'fun':
+                define_var(stmt[1])  # 为函数名创建变量
+        # 编译所有语句
         visit(['block', statements])
 
     def compile_expr_stat(node):
@@ -647,6 +665,56 @@ def cilly_vm_compiler(ast, code, consts, scopes):
         scope_i, index = lookup_var(name)
         emit(LOAD_VAR, scope_i, index)
 
+    def compile_fun(node):
+        _, params, body = node
+        # 保存当前作用域
+        nonlocal scopes
+        old_scopes = scopes
+        # 创建新的作用域
+        scopes = [[]]
+        # 为参数创建变量
+        for param in params:
+            define_var(param)
+        # 保存当前代码长度
+        start_addr = len(code)
+        # 编译函数体
+        visit(body)
+        # 如果没有显式的return语句，添加一个返回null
+        if code[-1] != RETURN:
+            emit(RETURN)
+        # 获取函数代码
+        fun_code = code[start_addr:]
+        # 恢复原来的作用域
+        scopes = old_scopes
+        # 将函数代码添加到常量表
+        index = add_const(fun_code)
+        emit(MAKE_FUNCTION, index)
+
+    def compile_fun_stat(node):
+        _, name, params, body = node
+        # 编译函数体
+        visit(['fun', params, body])
+        # 存储函数到变量
+        index = define_var(name)
+        emit(STORE_VAR, 0, index)
+
+    def compile_call(node):
+        _, fun, args = node
+        # 编译函数表达式
+        visit(fun)
+        # 编译参数
+        for arg in args:
+            visit(arg)
+        # 调用函数
+        emit(CALL_FUNCTION, len(args))
+
+    def compile_return(node):
+        _, e = node
+        # 编译返回值表达式
+        visit(e)
+        # 生成返回指令
+        emit(RETURN)
+
     visitors = {
         'program': compile_program,
         'expr_stat': compile_expr_stat,
@@ -663,6 +731,10 @@ def cilly_vm_compiler(ast, code, consts, scopes):
         'true': compile_literal,
         'false': compile_literal,
         'null': compile_literal,
+        'fun': compile_fun,
+        'fun_stat': compile_fun_stat,
+        'call': compile_call,
+        'return': compile_return,
     }
 
     def visit(node):
@@ -711,19 +783,36 @@ def cilly_vm_compiler(ast, code, consts, scopes):
 #     print(42);
 # '''
 
+# p1 = '''
+# var x1 = 100;
+#
+# {
+#     var x1 = 200;
+#     {
+#         var x1 = 300;
+#         print("inner x1", x1);
+#     }
+#     print("middle x1", x1);
+# }
+#
+# print("outer x1", x1);
+# '''
+
 p1 = '''
-var x1 = 100;
+var odd = fun(n){
+  if(n == 1)
+    return true;
+  else
+   return even(n-1);
+};
+var even = fun(n) {
+ if(n==0)
+   return true;
+ else
+   return odd(n-1);
+};
 
-{
-    var x1 = 200;
-    {
-        var x1 = 300;
-        print("inner x1", x1);
-    }
-    print("middle x1", x1);
-}
-
-print("outer x1", x1);
+print(even(3), odd(3));
 '''
 
 ts = cilly_lexer(p1)
